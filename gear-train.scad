@@ -63,7 +63,7 @@ function total_offset(idx) =
 
 for (idx = [1:1:len(wheel_pds) - 1]) {
   x_offset = wheel_pds[idx - 1] / 2 + pinion_pds[idx] / 2;
-  translate([total_offset(idx), 0, -wheel_thickness * idx])
+  translate([total_offset(idx), 0, -pinion_thickness * idx])
     cycloid_wheel_and_pinion(
       pd=wheel_pds[idx],
       tooth_count=wheel_teeth[idx], 
@@ -75,33 +75,3 @@ for (idx = [1:1:len(wheel_pds) - 1]) {
       prev_tooth_count=wheel_teeth[idx - 1]
   );
 }
-//
-//// Barrel
-//
-//
-////difference() {
-//cycloid_wheel_and_pinion(
-//  pd=75,
-//  tooth_count=75, 
-//  gear_ratio=7.5,
-//  wheel_thickness=5,
-//  pinion_thickness=6,
-//  prev_pd=80,
-//  prev_gear_ratio=8,
-//  prev_tooth_count=80
-//);
-//translate([80 / 2 + 75 / 7.5 / 2, 0, 5 + 1])
-//# cycloid_wheel_and_pinion(
-//  pd=80,
-//  tooth_count=80, 
-//  gear_ratio=8,
-//  wheel_thickness=5,
-//  pinion_thickness=5,
-//  prev_pd=75,
-//  prev_gear_ratio=7.5,
-//  prev_tooth_count=75
-//);
-
-
-//  cylinder(r=6, h=30, center=true);
-//}
