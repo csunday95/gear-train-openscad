@@ -4,6 +4,8 @@ function rotate_pt(pt, angle) = [
   pt[0] * sin(angle) + pt[1] * cos(angle)
 ];
 
+function rotate_pt_about(pt, center, angle) = add_pts(rotate_pt(diff_pts(pt, center), angle), center);
+
 function rot_pt_90(pt) = [
   -pt[1], pt[0]
 ];
@@ -85,24 +87,102 @@ module polygon_arc(p1, p2, radius, step=0.1) {
       polygon(points_w_center);
 }
 
+module escape_wheel_profile(wheel_r, tooth_angle, first_tooth_inner_point, outer_circle_point, outer_tooth_tip_pt, dedendum_x_axis_intersection, balance_roller_pitch_r) {
+  difference() {
+    circle(r=wheel_r);
+    for(a = [0:tooth_angle:360 - tooth_angle]) {
+      rotate([0, 0, a - tooth_angle / 2]) {
+        polygon([
+          first_tooth_inner_point,
+          [wheel_r, 0],
+          outer_circle_point,
+          outer_tooth_tip_pt,
+          dedendum_x_axis_intersection
+        ]);
+        difference() {
+          polygon_arc(
+            outer_tooth_tip_pt,
+            dedendum_x_axis_intersection,
+            radius = wheel_r,
+            step = 0.05
+          );
+          translate(dedendum_x_axis_intersection)
+            mirror([0, 1, 0])
+              square([balance_roller_pitch_r / 2, balance_roller_pitch_r / 2]);
+        }
+      }
+    }
+  }
+}
+
+module impulse_roller_profile(roller_r, crescent_chord_len, escaping_angle) {
+  crescent_subtend_angle = asin(crescent_chord_len / 2 / roller_r);
+  crescent_end_pt = rotate_pt([roller_r, 0], crescent_subtend_angle);
+  // figure out what this is actually supposed to be
+  pallet_width = roller_r / 12;
+  difference() {
+    // roller circle
+    circle(r=roller_r);
+    // passing crescent
+    rotate([0, 0, escaping_angle / 2 - 5])
+      polygon_arc(
+        crescent_end_pt,
+        [roller_r, 0],
+        radius=roller_r / 2.5
+      );
+  }
+  // need to figure out this rotation to not have it just arbitrary
+  rotate([0, 0, escaping_angle / 2]) {
+    translate([roller_r / 2 - pallet_width, -pallet_width])
+      square([roller_r / 2, pallet_width]);
+    translate([roller_r - pallet_width, 0])
+      difference() {
+        circle(r=pallet_width);
+        translate([-roller_r / 4, 0])
+          square([roller_r / 2, pallet_width]);
+      }
+  }
+}
+
+module unlocking_roller_profile(unlocking_r, unlocking_dir, pallet_width=1) {
+  circle(r=0.9 * unlocking_r / 2);
+  a = atan2(unlocking_dir[1], unlocking_dir[0]);
+  echo(a);
+  rotate([0, 0, a])
+  difference() {
+    translate([unlocking_r / 2 - pallet_width, 0])
+      circle(r=pallet_width);
+    translate([0, -unlocking_r])
+      square([unlocking_r, unlocking_r]);
+  }
+}
+
+// ah, the day I finally use the quadratic formula
+function compute_pallet_roller_radius(escaping_angle, center_dist, wheel_radius, impulse_angle=1) = 
+  let (theta = escaping_angle / 2 - impulse_angle)
+  let (A = cos(theta) ^ 2 + sin(theta) ^ 2, B = 2 * center_dist * cos(theta), C = center_dist^2 - wheel_radius^2)
+    abs((-B + sqrt(B ^ 2 - 4 * A * C)) / (2 * A));
+    
+
 // Watchmaking, Daniels pg. 233
-module escape_wheel_profile(diameter, dedendum_depth, tooth_count=15, escaping_angle=36, tooth_tip_subtend=0.25) {
-  wheel_r = diameter / 2;
+module chronometer_escapement(pitch_diameter, dedendum_depth, wheel_thickness, unlocking_roller_thickness, tooth_count=15, escaping_angle=36, tooth_tip_subtend=0.5) {
+  wheel_r = pitch_diameter / 2;
   escaping_angle_hf = escaping_angle / 2;
   tooth_angle = 360 / tooth_count;
   tooth_angle_hf = tooth_angle / 2;
   center_dist = wheel_r * cos(tooth_angle_hf) + wheel_r * sin(tooth_angle_hf) / tan(escaping_angle_hf);
-  balance_roller_pitch_r = wheel_r * sin(tooth_angle_hf) / sin(escaping_angle_hf);
+  pallet_roller_angle = escaping_angle_hf - 1;
+  impulse_pallet_pitch_r = wheel_r * sin(tooth_angle_hf) / sin(escaping_angle_hf);
+  balance_roller_pitch_r = compute_pallet_roller_radius(escaping_angle, center_dist, wheel_r);
   balance_roller_center = [center_dist, 0];
-  // intersect_pt = [wheel_r * cos(tooth_angle_hf), wheel_r * sin(tooth_angle_hf)];
   intersect_pt = rotate_pt([wheel_r, 0], tooth_angle_hf);
   lock_pt = rotate_pt(intersect_pt, tooth_angle);
   // debug_pt(intersect_pt);
   // debug_pt(lock_pt);
-  flexure_pt_dist = 1.25 * diameter;
+  flexure_pt_dist = 1.25 * pitch_diameter;
   flexure_pt_dir = normalized(diff_pts(lock_pt, balance_roller_center));
   flexure_pt = add_pts(balance_roller_center, scalar_mult_pt(flexure_pt_dir, flexure_pt_dist));
-  // debug_pt(flexure_pt);
+  debug_pt(flexure_pt);
   flexure_orthogonal_dir = rot_pt_90(flexure_pt_dir);
   // debug_dir(flexure_pt_dir);
   // debug_dir(flexure_orthogonal_dir);
@@ -122,47 +202,53 @@ module escape_wheel_profile(diameter, dedendum_depth, tooth_count=15, escaping_a
   outer_tooth_tip_pt = rotate_pt([wheel_r, 0], tooth_angle - tooth_tip_subtend);
   // location where dedendum intersects the x axis, so we have a flash region
   dedendum_x_axis_intersection = [first_tooth_inner_point[0], 0];
-  difference() {
-    circle(r=wheel_r);
-    for(a = [0:tooth_angle:360 - tooth_angle]) {
-      rotate([0, 0, a - tooth_angle_hf]) {
-        polygon([
-          first_tooth_inner_point,
-          [wheel_r, 0],
-          outer_circle_point,
-          outer_tooth_tip_pt,
-          dedendum_x_axis_intersection
-        ]);
-        difference() {
-          polygon_arc(
-            outer_tooth_tip_pt,
-            dedendum_x_axis_intersection,
-            radius = wheel_r,
-            step = 0.1
-          );
-          translate(dedendum_x_axis_intersection)
-            mirror([0, 1, 0])
-              square([balance_roller_pitch_r / 2, balance_roller_pitch_r / 2]);
-        }
-      }
-    }
-  }
+  // length of the chord of the impulse crescent
+  crescent_chord_len = 0.8 * 2 * wheel_r * sin(tooth_angle);
+  roller_start_offset_angle = 5;
+  flexure_dir = normalized(diff_pts(flexure_pt, balance_roller_center));
+  flexure_dir_angle = atan2(flexure_dir[1], flexure_dir[0]);
+  unlocking_drop_tip_pt = rotate_pt([balance_roller_pitch_r / 2, 0], flexure_dir_angle);
+  unlocking_tip_pt = rotate_pt(unlocking_drop_tip_pt, -1);
+  unlocking_tip_dir = normalized(unlocking_tip_pt);
+  rotate([0, 0, 0])
+  //mirror([1, 0, 0])
+    linear_extrude(wheel_thickness)
+      escape_wheel_profile(
+        wheel_r, 
+        tooth_angle, 
+        first_tooth_inner_point, 
+        outer_circle_point, 
+        outer_tooth_tip_pt, 
+        dedendum_x_axis_intersection, 
+        impulse_pallet_pitch_r
+      );
+  translate([center_dist, 0])
+  //mirror([0, 1, 0])
+  rotate([0, 0, 180])
+  linear_extrude(wheel_thickness)
+    impulse_roller_profile(
+      balance_roller_pitch_r,
+      crescent_chord_len,
+      escaping_angle
+    );
+  translate([center_dist, 0, wheel_thickness])
+    linear_extrude(unlocking_roller_thickness)
+      unlocking_roller_profile(balance_roller_pitch_r, unlocking_tip_dir);
 }
 
-module test_escape_wheel_profile() {
+module test_chronometer_escapement() {
   $fs = 0.1;
   $fa = 0.1;
-  tooth_angle = 360 / 15;
-  tooth_angle_hf = tooth_angle / 2;
-  rotate([1, 0, 0])
-    escape_wheel_profile(
-      diameter=50,
-      dedendum_depth=5
-    );
+  chronometer_escapement(
+    pitch_diameter=50,
+    dedendum_depth=5,
+    wheel_thickness=4,
+    unlocking_roller_thickness=4
+  );
 }
 
-module impulse_wheel_profile() {
+module impulse_wheel_profile(pitch_diameter) {
   
 }
 
-test_escape_wheel_profile();
+test_chronometer_escapement();
