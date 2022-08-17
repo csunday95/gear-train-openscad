@@ -1,3 +1,6 @@
 [submodule "openscad-util"]
 	path = openscad-util
 	url = git@github.com:csunday95/openscad-util.git
+[submodule "bearing-openscad"]
+	path = bearing-openscad
+	url = git@github.com:csunday95/bearing-openscad.git

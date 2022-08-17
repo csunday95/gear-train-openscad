@@ -196,6 +196,12 @@ module detent_arm(flexure_pt, passing_spring_end_pt, detent_rotation, arm_width,
   main_arm_endpoint = point2point_abs_distance(flexure_pt, passing_spring_end_pt, main_arm_length);
   arm_orthogonal_dir = rot_pt_90(normalized(passing_spring_end_pt - flexure_pt));
   arm_backing_target_pt = passing_spring_end_pt + arm_orthogonal_dir * passing_spring_thickness;
+  // reasonable approx
+  main_arm_torque = arm_width * (main_arm_length ^ 2) / 2;
+  echo(["t", main_arm_torque]);
+  sector_balance_angle = 45;
+  sector_balance_torque_radius = sqrt(2 * main_arm_torque / sector_balance_angle);
+  echo(sector_balance_torque_radius);
   // detent base
   translate(detent_center)
     cylinder(r=detent_radius, h=arm_thickness);
@@ -209,6 +215,10 @@ module detent_arm(flexure_pt, passing_spring_end_pt, detent_rotation, arm_width,
         arm_thickness, 
         intrinsic_translation=[-arm_width / 4, 0]
       );
+//      // pivot point counterbalance
+//      bar_point2_point(
+//        flexure_pt, 
+//      );
       translate(flexure_pt)
         cylinder(r=pivot_shaft_radius * 2, h=arm_thickness);
     }
@@ -346,88 +356,88 @@ module chronometer_escapement_assembled(pitch_diameter, dedendum_depth, wheel_th
   spring_release_tip_at_unlock = flexure_pt + unlocking_tip_flexure_pt_dir * spring_release_tip_dist;
   text_depth = 0.4;
   // escaping wheel
-//  difference() {
-//    escape_wheel(
-//      wheel_thickness, 
-//      wheel_r, 
-//      tooth_angle, 
-//      first_tooth_inner_point, 
-//      outer_circle_point, 
-//      outer_tooth_tip_pt, 
-//      dedendum_x_axis_intersection, 
-//      impulse_pallet_pitch_r,
-//      train_shaft_diameter,
-//      shaft_notch_size
-//    );
-//    for (a = [0:360/3:270]) {
-//      rotate([0, 0, a - 3])
-//      translate([0, wheel_r/2, 0])
-//        rotate([90, 0, 0])
-//          cylinder(r=0.75, h=wheel_r, center=true);
-//    }
-//    translate([0, 0, wheel_thickness - text_depth])
-//      revolve_text(
-//        radius=wheel_r / 2,
-//        chars=str("Earnshaw & Arnold - 1783"),
-//        font_size=4.5,
-//        thickness=text_depth * 2,
-//        arc_fraction=0.6
-//      );
-//  }
+  difference() {
+    escape_wheel(
+      wheel_thickness, 
+      wheel_r, 
+      tooth_angle, 
+      first_tooth_inner_point, 
+      outer_circle_point, 
+      outer_tooth_tip_pt, 
+      dedendum_x_axis_intersection, 
+      impulse_pallet_pitch_r,
+      train_shaft_diameter,
+      shaft_notch_size
+    );
+    for (a = [0:360/3:270]) {
+      rotate([0, 0, a - 3])
+      translate([0, wheel_r/2, 0])
+        rotate([90, 0, 0])
+          cylinder(r=0.75, h=wheel_r, center=true);
+    }
+    translate([0, 0, wheel_thickness - text_depth])
+      revolve_text(
+        radius=wheel_r / 2,
+        chars=str("Earnshaw & Arnold - 1783"),
+        font_size=4.5,
+        thickness=text_depth * 2,
+        arc_fraction=0.6
+      );
+  }
   // impulse roller segment
-//  translate([center_dist, 0])
-//    difference() {
-//      rotate([0, 0, 180])
-//        linear_extrude(wheel_thickness, convexity=3)
-//          impulse_roller_profile(
-//            balance_roller_pitch_r,
-//            crescent_chord_len,
-//            escaping_angle,
-//            train_shaft_diameter / 2,
-//            shaft_notch_size
-//          );
-//      for (a = [0:360/3:270]) {
-//        rotate([0, 0, a - 3])
-//        translate([0, wheel_r/2, 0])
-//          rotate([90, 0, 0])
-//            cylinder(r=0.75, h=wheel_r, center=true);
-//      }
-//    }
-//  // unlocking roller segment
-//  translate([center_dist, 0, wheel_thickness])
-//    linear_extrude(unlocking_roller_thickness)
-//      unlocking_roller_profile(
-//        balance_roller_pitch_r, 
-//        unlocking_tip_dir, 
-//        train_shaft_diameter / 2,
-//        shaft_notch_size
-//      );
+  translate([center_dist, 0])
+    difference() {
+      rotate([0, 0, 180])
+        linear_extrude(wheel_thickness, convexity=3)
+          impulse_roller_profile(
+            balance_roller_pitch_r,
+            crescent_chord_len,
+            escaping_angle,
+            train_shaft_diameter / 2,
+            shaft_notch_size
+          );
+      for (a = [0:360/3:270]) {
+        rotate([0, 0, a - 3])
+        translate([0, wheel_r/2, 0])
+          rotate([90, 0, 0])
+            cylinder(r=0.75, h=wheel_r, center=true);
+      }
+    }
+  // unlocking roller segment
+  translate([center_dist, 0, wheel_thickness])
+    linear_extrude(unlocking_roller_thickness)
+      unlocking_roller_profile(
+        balance_roller_pitch_r, 
+        unlocking_tip_dir, 
+        train_shaft_diameter / 2,
+        shaft_notch_size
+      );
   // detent arm
-//  translate([0, 0, wheel_thickness + 1])
-//    detent_arm(
-//      flexure_pt=flexure_pt, 
-//      passing_spring_end_pt=spring_release_tip_at_unlock,
-//      detent_rotation=locking_stone_radial_angle,
-//      arm_width=detent_arm_width, 
-//      arm_thickness=detent_arm_width, 
-//      detent_radius=locking_stone_radius,
-//      detent_center=locking_stone_center, 
-//      detent_edge=locking_limit_pt, 
-//      pivot_shaft_radius=train_shaft_diameter
-//    );
+  translate([0, 0, wheel_thickness + 1])
+    detent_arm(
+      flexure_pt=flexure_pt, 
+      passing_spring_end_pt=spring_release_tip_at_unlock,
+      detent_rotation=locking_stone_radial_angle,
+      arm_width=detent_arm_width, 
+      arm_thickness=detent_arm_width, 
+      detent_radius=locking_stone_radius,
+      detent_center=locking_stone_center, 
+      detent_edge=locking_limit_pt, 
+      pivot_shaft_radius=train_shaft_diameter
+    );
   // wheel pinion
-// translate([0, 0, wheel_thickness])
-//  linear_extrude(pinion_thickness)
-//    difference() {
-//      pinion_profile(
-//        pitch_diameter=pinion_pitch_dia,
-//        leaf_count=pinion_leaf_ct,
-//        dedendum_depth=pinion_dedendum_depth
-//      );
-//      circle(r=train_shaft_diameter / 2);
-//      translate([train_shaft_diameter / 2, 0, 0])
-//        square([shaft_notch_size * 2, shaft_notch_size], center=true);
-//    }
+ translate([0, 0, wheel_thickness])
+  linear_extrude(pinion_thickness)
+    difference() {
+      pinion_profile(
+        pitch_diameter=pinion_pitch_dia,
+        leaf_count=pinion_leaf_ct,
+        dedendum_depth=pinion_dedendum_depth
+      );
+      circle(r=train_shaft_diameter / 2);
+      translate([train_shaft_diameter / 2, 0, 0])
+        square([shaft_notch_size * 2, shaft_notch_size], center=true);
+    }
 }
 
 module test_chronometer_escapement() {
@@ -438,12 +448,12 @@ module test_chronometer_escapement() {
     dedendum_depth=5,
     wheel_thickness=8,
     unlocking_roller_thickness=8,
-    train_shaft_diameter=2.5,
-    shaft_notch_size=0.5,
+    train_shaft_diameter=4,
+    shaft_notch_size=0.75,
     detent_arm_width=5,
     pinion_pitch_dia=8,
     pinion_leaf_ct=8,
-    pinion_dedendum_depth=1.6,
+    pinion_dedendum_depth=1,
     pinion_thickness=6
   );
 }
